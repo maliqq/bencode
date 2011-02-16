@@ -1,0 +1,5 @@
+USAGE
+
+Bencode.encode(object)
+Bencode.decode(string)
+
