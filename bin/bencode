@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "json"
+require "bencode"
+
+options = {
+  mode: :decode,
+  input_path: nil,
+  output_path: nil
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bencode [options]\n\nExamples:\n  bencode --decode --file input.torrent\n  bencode --encode < data.json\n  bencode --encode --output payload.bencode < data.json"
+
+  opts.on("-e", "--encode", "Encode JSON from STDIN or --file to bencode") { options[:mode] = :encode }
+  opts.on("-d", "--decode", "Decode bencode from STDIN or --file to JSON") { options[:mode] = :decode }
+  opts.on("-f", "--file FILE", "Read input from file instead of STDIN") { |file| options[:input_path] = file }
+  opts.on("-o", "--output FILE", "Write output to file instead of STDOUT") { |file| options[:output_path] = file }
+  opts.on("-h", "--help", "Show help") do
+    puts opts
+    exit
+  end
+end
+
+parser.parse!
+
+input_io = options[:input_path] ? File.open(options[:input_path], "r") : $stdin
+output_io = options[:output_path] ? File.open(options[:output_path], "w") : $stdout
+
+begin
+  payload = input_io.read
+
+  result = case options[:mode]
+           when :decode
+             JSON.pretty_generate(Bencode.decode(payload))
+           when :encode
+             Bencode.encode(JSON.parse(payload))
+           else
+             raise Bencode::Error, "Unknown mode: #{options[:mode]}"
+           end
+
+  output_io.write(result)
+  output_io.write("\n") if options[:mode] == :decode && output_io == $stdout
+ensure
+  input_io.close if options[:input_path]
+  output_io.close if options[:output_path]
+end
